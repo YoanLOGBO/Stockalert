@@ -969,4 +969,392 @@
     }
 
     if (status === "Surstock") {
-      return `<span class="badg
+      return `<span class="badge badge-info">Surstock</span>`;
+    }
+
+    return `<span class="badge badge-success">Normal</span>`;
+  }
+
+  function render() {
+
+    analyzedData = analyze(inventory);
+
+    const total =
+      analyzedData.length;
+
+    const rupture =
+      analyzedData.filter(x => x.Status === "Rupture").length;
+
+    const reorder =
+      analyzedData.filter(x => x.Status === "Réapprovisionnement").length;
+
+    const overstock =
+      analyzedData.filter(x => x.Status === "Surstock").length;
+
+    const value =
+      analyzedData.reduce(
+        (sum, x) => sum + x.Value,
+        0
+      );
+
+    document.getElementById("totalArticles").textContent =
+      formatNumber(total);
+
+    document.getElementById("ruptureCount").textContent =
+      formatNumber(rupture);
+
+    document.getElementById("reorderCount").textContent =
+      formatNumber(reorder);
+
+    document.getElementById("overstockCount").textContent =
+      formatNumber(overstock);
+
+    document.getElementById("stockValue").textContent =
+      formatNumber(value);
+
+    document.getElementById("analysisCount").textContent =
+      `${total} article${total > 1 ? "s" : ""}`;
+
+    renderPriorityTable();
+    renderAnalysisTable();
+
+    document.getElementById("status").textContent =
+      `${total} article${total > 1 ? "s" : ""} analysé${total > 1 ? "s" : ""}`;
+  }
+
+  function renderPriorityTable() {
+
+    const body =
+      document.getElementById("priorityBody");
+
+    const priorities =
+      analyzedData
+        .filter(x =>
+          x.Status === "Rupture" ||
+          x.Status === "Réapprovisionnement"
+        )
+        .sort((a, b) => {
+
+          if (a.Status === "Rupture" &&
+              b.Status !== "Rupture") return -1;
+
+          if (a.Status !== "Rupture" &&
+              b.Status === "Rupture") return 1;
+
+          return a.Coverage - b.Coverage;
+        })
+        .slice(0, 20);
+
+    if (!priorities.length) {
+
+      body.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty">
+            Aucun article prioritaire détecté.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    body.innerHTML =
+      priorities.map(item => `
+
+        <tr>
+          <td><strong>${escapeHtml(item.Code)}</strong></td>
+
+          <td>${escapeHtml(item.Designation)}</td>
+
+          <td>${formatNumber(item.Stock)}</td>
+
+          <td>${formatNumber(item.ReorderPoint)}</td>
+
+          <td>
+            ${isFinite(item.Coverage)
+              ? formatNumber(item.Coverage) + " j"
+              : "∞"}
+          </td>
+
+          <td>${formatMoney(item.Value)}</td>
+
+          <td>${statusBadge(item.Status)}</td>
+        </tr>
+
+      `).join("");
+  }
+
+  function renderAnalysisTable() {
+
+    const body =
+      document.getElementById("analysisBody");
+
+    if (!analyzedData.length) {
+
+      body.innerHTML = `
+        <tr>
+          <td colspan="10" class="empty">
+            Aucune donnée à analyser.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    body.innerHTML =
+      analyzedData.map(item => `
+
+        <tr>
+
+          <td>
+            <strong>${escapeHtml(item.Code)}</strong>
+          </td>
+
+          <td>
+            ${escapeHtml(item.Designation)}
+          </td>
+
+          <td>
+            ${formatNumber(item.Stock)}
+          </td>
+
+          <td>
+            ${formatNumber(item.Conso)}
+          </td>
+
+          <td>
+            ${formatMoney(item.Prix)}
+          </td>
+
+          <td>
+            ${formatNumber(item.Delai)} j
+          </td>
+
+          <td>
+            ${formatNumber(item.ReorderPoint)}
+          </td>
+
+          <td>
+            ${
+              isFinite(item.Coverage)
+                ? formatNumber(item.Coverage) + " j"
+                : "∞"
+            }
+          </td>
+
+          <td>
+            ${formatMoney(item.Value)}
+          </td>
+
+          <td>
+            ${statusBadge(item.Status)}
+          </td>
+
+        </tr>
+
+      `).join("");
+  }
+
+  function escapeHtml(value) {
+
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function loadDemo() {
+
+    inventory = JSON.parse(
+      JSON.stringify(demoData)
+    );
+
+    document.getElementById("fileName").textContent =
+      "Données de démonstration";
+
+    render();
+  }
+
+  function handleFile(event) {
+
+    const file =
+      event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    document.getElementById("fileName").textContent =
+      file.name;
+
+    const reader =
+      new FileReader();
+
+    reader.onload = function(e) {
+
+      try {
+
+        const data =
+          new Uint8Array(e.target.result);
+
+        const workbook =
+          XLSX.read(data, {
+            type: "array"
+          });
+
+        const firstSheet =
+          workbook.Sheets[
+            workbook.SheetNames[0]
+          ];
+
+        const rows =
+          XLSX.utils.sheet_to_json(
+            firstSheet,
+            {
+              defval: ""
+            }
+          );
+
+        if (!rows.length) {
+
+          alert(
+            "Le fichier ne contient aucune donnée exploitable."
+          );
+
+          return;
+        }
+
+        inventory =
+          normalizeData(rows);
+
+        render();
+
+      }
+      catch(error) {
+
+        console.error(error);
+
+        alert(
+          "Impossible de lire le fichier. Vérifiez qu'il s'agit bien d'un fichier Excel ou CSV valide."
+        );
+      }
+
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  function downloadTemplate() {
+
+    const template = [
+
+      {
+        Code: "ART-001",
+        Designation: "Exemple article",
+        Stock: 100,
+        Conso: 30,
+        Prix: 5000,
+        Delai: 15
+      }
+
+    ];
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(template);
+
+    const workbook =
+      XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Stock"
+    );
+
+    XLSX.writeFile(
+      workbook,
+      "StockAlert_Modele_Import.xlsx"
+    );
+  }
+
+  function exportResults() {
+
+    if (!analyzedData.length) {
+
+      alert(
+        "Aucune donnée à exporter. Chargez d'abord les données démo ou un fichier Excel."
+      );
+
+      return;
+    }
+
+    const exportData =
+      analyzedData.map(item => ({
+
+        Code: item.Code,
+
+        Designation:
+          item.Designation,
+
+        Stock:
+          item.Stock,
+
+        "Consommation mensuelle":
+          item.Conso,
+
+        "Prix unitaire FCFA":
+          item.Prix,
+
+        "Delai jours":
+          item.Delai,
+
+        "Consommation quotidienne":
+          Number(item.DailyConsumption.toFixed(2)),
+
+        "Stock de securite":
+          Number(item.SafetyStock.toFixed(2)),
+
+        "Point de commande":
+          item.ReorderPoint,
+
+        "Couverture jours":
+          isFinite(item.Coverage)
+            ? Number(item.Coverage.toFixed(1))
+            : "∞",
+
+        "Valeur stock FCFA":
+          item.Value,
+
+        Statut:
+          item.Status
+
+      }));
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(exportData);
+
+    const workbook =
+      XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Analyse Stock"
+    );
+
+    XLSX.writeFile(
+      workbook,
+      "StockAlert_Analyse.xlsx"
+    );
+  }
+
+  // Chargement automatique des données de démonstration
+  loadDemo();
+
+</script>
+
+</body>
+</html>
