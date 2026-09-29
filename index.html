@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="StockAlert - Analyse intelligente des stocks pour PME">
+  <title>StockAlert — Gestion intelligente des stocks</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #07111f;
+      --panel: #0d1b2e;
+      --panel-2: #12243a;
+      --border: #223750;
+      --text: #edf5ff;
+      --muted: #91a4bb;
+      --accent: #20c997;
+      --accent-dark: #0d9f78;
+      --danger: #ff5c6c;
+      --warning: #ffb84d;
+      --info: #5ca9ff;
+      --success: #2dd4a8;
+      --shadow: 0 18px 50px rgba(0,0,0,.25);
+    }
+
+    body {
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(32,201,151,.08), transparent 28%),
+        linear-gradient(135deg, #06101d, #091728 55%, #07111f);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .container {
+      width: min(1400px, 94%);
+      margin: auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(7,17,31,.88);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #65f0c7);
+      color: #03120e;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 8px 30px rgba(32,201,151,.2);
+    }
+
+    .brand h1 {
+      font-size: 21px;
+      letter-spacing: -.4px;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 15px;
+      border-radius: 9px;
+      transition: .2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: #3a5575;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #04140f;
+      border-color: var(--accent);
+      font-weight: 800;
+    }
+
+    .btn-primary:hover {
+      background: #35d9a9;
+    }
+
+    main {
+      padding: 34px 0 70px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr .6fr;
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .hero-card,
+    .upload-card,
+    .card {
+      background: linear-gradient(145deg, rgba(18,36,58,.92), rgba(9,25,42,.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card:after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: rgba(32,201,151,.08);
+      right: -100px;
+      top: -110px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .hero h2 {
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.02;
+      max-width: 720px;
+      margin-bottom: 14px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 700px;
+    }
+
+    .upload-card {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .upload-card h3 {
+      margin-bottom: 7px;
+    }
+
+    .upload-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    .upload-zone {
+      border: 1px dashed #3c5877;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      background: rgba(255,255,255,.015);
+    }
+
+    .upload-zone input {
+      display: none;
+    }
+
+    .upload-zone label {
+      display: inline-block;
+      background: var(--accent);
+      color: #04140f;
+      font-weight: 800;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .file-name {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 22px 0;
+    }
+
+    .status {
+      padding: 10px 14px;
+      background: rgba(32,201,151,.08);
+      border: 1px solid rgba(32,201,151,.2);
+      color: #9cf3d8;
+      border-radius: 9px;
+      font-size: 13px;
+      margin-left: auto;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 18px;
+      min-height: 125px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 850;
+      letter-spacing: -.8px;
+    }
+
+    .stat-small {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 7px;
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    .warning {
+      color: var(--warning);
+    }
+
+    .success {
+      color: var(--success);
+    }
+
+    .info {
+      color: var(--info);
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 30px 0 13px;
+      gap: 15px;
+    }
+
+    .section-title h3 {
+      font-size: 20px;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .card {
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 14px 15px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th {
+      background: rgba(255,255,255,.025);
+      color: #b7c9dc;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+    }
+
+    td {
+      color: #e2ebf5;
+    }
+
+    tbody tr:hover {
+      background: rgba(255,255,255,.025);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .badge-danger {
+      color: #ffd5d9;
+      background: rgba(255,92,108,.13);
+      border: 1px solid rgba(255,92,108,.2);
+    }
+
+    .badge-warning {
+      color: #ffe5bb;
+      background: rgba(255,184,77,.13);
+      border: 1px solid rgba(255,184,77,.2);
+    }
+
+    .badge-success {
+      color: #c8fff0;
+      background: rgba(45,212,168,.12);
+      border: 1px solid rgba(45,212,168,.18);
+    }
+
+    .badge-info {
+      color: #d7eaff;
+      background: rgba(92,169,255,.12);
+      border: 1px solid rgba(92,169,255,.18);
+    }
+
+    .empty {
+      padding: 45px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .insight {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 15px;
+      padding: 18px;
+    }
+
+    .insight strong {
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .insight p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .notice {
+      margin-top: 22px;
+      padding: 14px 16px;
+      border-radius: 11px;
+      border: 1px solid #29415e;
+      background: rgba(92,169,255,.05);
+      color: #a9c8e8;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 25px 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 1050px) {
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .nav {
+        padding: 10px 0;
+      }
+
+      .nav-actions .btn:not(.btn-primary) {
+        display: none;
+      }
+
+      main {
+        padding-top: 20px;
+      }
+
+      .hero-card {
+        padding: 22px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status {
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h2 {
+        font-size: 31px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="container nav">
+    <div class="brand">
+      <div class="logo">SA</div>
+      <div>
+        <h1>StockAlert</h1>
+        <span>Intelligent Stock Management</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn" onclick="loadDemo()">Données démo</button>
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+        Importer Excel
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <div class="hero-card">
+      <div class="eyebrow">Stock Management SaaS — V1</div>
+
+      <h2>
+        Transformez vos données de stock en décisions de réapprovisionnement.
+      </h2>
+
+      <p>
+        Importez votre fichier Excel et obtenez automatiquement les niveaux
+        de stock, les risques de rupture, les points de commande, les
+        surstocks et la valeur de votre inventaire.
+      </p>
+    </div>
+
+    <div class="upload-card">
+      <h3>Importer votre stock</h3>
+
+      <p>
+        Formats acceptés : Excel (.xlsx, .xls) et CSV.
+        Les données sont analysées directement dans votre navigateur.
+      </p>
+
+      <div class="upload-zone">
+        <input
+          type="file"
+          id="fileInput"
+          accept=".xlsx,.xls,.csv"
+          onchange="handleFile(event)"
+        >
+
+        <label for="fileInput">
+          Choisir un fichier
+        </label>
+
+        <div class="file-name" id="fileName">
+          Aucun fichier sélectionné
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="loadDemo()">
+      Charger la démonstration
+    </button>
+
+    <button class="btn" onclick="downloadTemplate()">
+      Télécharger le modèle Excel
+    </button>
+
+    <button class="btn" onclick="exportResults()">
+      Exporter l'analyse
+    </button>
+
+    <div class="status" id="status">
+      Prêt à analyser
+    </div>
+  </div>
+
+  <section class="stats">
+
+    <div class="stat">
+      <div class="stat-label">Articles</div>
+      <div class="stat-value" id="totalArticles">0</div>
+      <div class="stat-small">Références analysées</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Risque de rupture</div>
+      <div class="stat-value danger" id="ruptureCount">0</div>
+      <div class="stat-small">Stock nul ou insuffisant</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Sous point de commande</div>
+      <div class="stat-value warning" id="reorderCount">0</div>
+      <div class="stat-small">Réapprovisionnement recommandé</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Surstock</div>
+      <div class="stat-value info" id="overstockCount">0</div>
+      <div class="stat-small">Plus de 90 jours de couverture</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Valeur du stock</div>
+      <div class="stat-value success" id="stockValue">0</div>
+      <div class="stat-small">FCFA</div>
+    </div>
+
+  </section>
+
+  <div class="section-title">
+    <h3>Priorités d'action</h3>
+    <span>Articles nécessitant une attention immédiate</span>
+  </div>
+
+  <section class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Désignation</th>
+            <th>Stock</th>
+            <th>Point commande</th>
+            <th>Couverture</th>
+            <th>Valeur</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+
+        <tbody id="priorityBody">
+          <tr>
+            <td colspan="7" class="empty">
+              Chargez les données démo ou importez votre fichier Excel.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-title">
+    <h3>Analyse complète du stock</h3>
+    <span id="analysisCount">0 article</span>
+  </div>
+
+  <section class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Désignation</th>
+            <th>Stock</th>
+            <th>Conso/mois</th>
+            <th>Prix unitaire</th>
+            <th>Délai</th>
+            <th>Point commande</th>
+            <th>Couverture</th>
+            <th>Valeur stock</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+
+        <tbody id="analysisBody">
+          <tr>
+            <td colspan="10" class="empty">
+              Aucune donnée à analyser.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="insight-grid">
+
+    <div class="insight">
+      <strong>📉 Risque de rupture</strong>
+      <p>
+        Stock nul ou inférieur au point de commande calculé automatiquement
+        à partir de la consommation et du délai d'approvisionnement.
+      </p>
+    </div>
+
+    <div class="insight">
+      <strong>📦 Surstock</strong>
+      <p>
+        Les articles présentant plus de 90 jours de couverture sont signalés
+        afin d'identifier les immobilisations de trésorerie.
+      </p>
+    </div>
+
+    <div class="insight">
+      <strong>🎯 Réapprovisionnement</strong>
+      <p>
+        Le point de commande prend en compte la demande pendant le délai
+        fournisseur ainsi qu'une sécurité de sept jours.
+      </p>
+    </div>
+
+  </section>
+
+  <div class="notice">
+    <strong>Confidentialité :</strong>
+    StockAlert V1 fonctionne localement dans votre navigateur.
+    Les fichiers importés ne sont pas envoyés à un serveur par cette version.
+  </div>
+
+</main>
+
+<footer>
+  <div class="container">
+    StockAlert V1 — Prototype SaaS de gestion intelligente des stocks
+    <br>
+    © 2026 — Yoan LOGBO
+  </div>
+</footer>
+
+<script>
+
+  let inventory = [];
+  let analyzedData = [];
+
+  const demoData = [
+    {
+      Code: "ART-001",
+      Designation: "Câble réseau Cat6",
+      Stock: 18,
+      Conso: 45,
+      Prix: 3500,
+      Delai: 15
+    },
+    {
+      Code: "ART-002",
+      Designation: "Batterie 12V",
+      Stock: 75,
+      Conso: 20,
+      Prix: 18000,
+      Delai: 20
+    },
+    {
+      Code: "ART-003",
+      Designation: "Connecteur RJ45",
+      Stock: 12,
+      Conso: 60,
+      Prix: 750,
+      Delai: 10
+    },
+    {
+      Code: "ART-004",
+      Designation: "Disque dur 2TB",
+      Stock: 8,
+      Conso: 4,
+      Prix: 52000,
+      Delai: 30
+    },
+    {
+      Code: "ART-005",
+      Designation: "Gants de manutention",
+      Stock: 240,
+      Conso: 35,
+      Prix: 1200,
+      Delai: 7
+    },
+    {
+      Code: "ART-006",
+      Designation: "Huile hydraulique 20L",
+      Stock: 9,
+      Conso: 8,
+      Prix: 28500,
+      Delai: 14
+    },
+    {
+      Code: "ART-007",
+      Designation: "Filtre moteur",
+      Stock: 3,
+      Conso: 6,
+      Prix: 15000,
+      Delai: 21
+    },
+    {
+      Code: "ART-008",
+      Designation: "Lampe LED",
+      Stock: 110,
+      Conso: 12,
+      Prix: 2500,
+      Delai: 8
+    }
+  ];
+
+  function normalizeNumber(value) {
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    if (typeof value === "number") {
+      return value;
+    }
+
+    let str = String(value)
+      .replace(/\s/g, "")
+      .replace(/FCFA/gi, "")
+      .replace(/€/g, "")
+      .replace(",", ".");
+
+    const number = parseFloat(str);
+
+    return isNaN(number) ? 0 : number;
+  }
+
+  function normalizeData(data) {
+
+    return data.map((row, index) => {
+
+      const keys = Object.keys(row);
+
+      function findKey(possibleNames) {
+
+        const key = keys.find(k =>
+          possibleNames.includes(
+            String(k)
+              .toLowerCase()
+              .trim()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+          )
+        );
+
+        return key;
+      }
+
+      const codeKey = findKey([
+        "code",
+        "reference",
+        "ref",
+        "article"
+      ]);
+
+      const designationKey = findKey([
+        "designation",
+        "désignation",
+        "libelle",
+        "libellé",
+        "produit",
+        "description"
+      ]);
+
+      const stockKey = findKey([
+        "stock",
+        "quantite",
+        "quantité",
+        "qte",
+        "qty"
+      ]);
+
+      const consoKey = findKey([
+        "conso",
+        "consommation",
+        "consommation mensuelle",
+        "conso/mois",
+        "conso mois"
+      ]);
+
+      const prixKey = findKey([
+        "prix",
+        "prix unitaire",
+        "pu",
+        "cout",
+        "coût"
+      ]);
+
+      const delaiKey = findKey([
+        "delai",
+        "délai",
+        "lead time",
+        "delai jours"
+      ]);
+
+      return {
+        Code: codeKey ? row[codeKey] : `ART-${String(index + 1).padStart(3, "0")}`,
+        Designation: designationKey ? row[designationKey] : "Article",
+        Stock: normalizeNumber(stockKey ? row[stockKey] : 0),
+        Conso: normalizeNumber(consoKey ? row[consoKey] : 0),
+        Prix: normalizeNumber(prixKey ? row[prixKey] : 0),
+        Delai: normalizeNumber(delaiKey ? row[delaiKey] : 7)
+      };
+    });
+  }
+
+  function analyze(data) {
+
+    return data.map(item => {
+
+      const dailyConsumption = item.Conso / 30;
+
+      const leadTimeDemand =
+        dailyConsumption * item.Delai;
+
+      const safetyStock =
+        dailyConsumption * 7;
+
+      const reorderPoint =
+        Math.ceil(leadTimeDemand + safetyStock);
+
+      const coverage =
+        dailyConsumption > 0
+          ? item.Stock / dailyConsumption
+          : Infinity;
+
+      const value =
+        item.Stock * item.Prix;
+
+      let status = "Normal";
+
+      if (item.Stock <= 0) {
+        status = "Rupture";
+      }
+      else if (item.Stock < reorderPoint) {
+        status = "Réapprovisionnement";
+      }
+      else if (coverage > 90) {
+        status = "Surstock";
+      }
+
+      return {
+        ...item,
+        DailyConsumption: dailyConsumption,
+        SafetyStock: safetyStock,
+        ReorderPoint: reorderPoint,
+        Coverage: coverage,
+        Value: value,
+        Status: status
+      };
+    });
+  }
+
+  function formatNumber(number) {
+
+    if (!isFinite(number)) {
+      return "∞";
+    }
+
+    return new Intl.NumberFormat("fr-FR", {
+      maximumFractionDigits: 0
+    }).format(number);
+  }
+
+  function formatMoney(number) {
+
+    return new Intl.NumberFormat("fr-FR", {
+      maximumFractionDigits: 0
+    }).format(number) + " FCFA";
+  }
+
+  function statusBadge(status) {
+
+    if (status === "Rupture") {
+      return `<span class="badge badge-danger">Rupture</span>`;
+    }
+
+    if (status === "Réapprovisionnement") {
+      return `<span class="badge badge-warning">Réapprovisionnement</span>`;
+    }
+
+    if (status === "Surstock") {
+      return `<span class="badg
